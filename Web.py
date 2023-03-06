@@ -47,12 +47,11 @@ with st.sidebar:
                    'Kidney Issue', 
                    'Coronory Heart Disease', 
                    'Thyroid Issue', 
-                   'Liver Issue'],
-                   ['High Blood Pressure', 
-                   'Kidney Issue', 
-                   'Coronory Heart Disease', 
-                   'Thyroid Issue', 
-                   'Liver Issue'])
+                   'Liver Issue',
+                   'High Cholestrol level',
+                   'Heart Attack',
+                   'Stroke'],
+                   ['High Blood Pressure','Kidney Issue'])
     
     life_style_options = st.multiselect(
     'My life-style includes:',
@@ -412,9 +411,9 @@ st.write("Your BMI group's average diabetes rate is highlighted in RED")
 # Plot4
 # Change data from wide to long
 st.header("Prevalence of diabetes in population with underlying health conditions")
-disease_long = pd.melt(df, id_vars=["Year","Diabetes","Gender"], value_vars=["High_Blood_Pressure","Kidney_Issue","Coronory_Heart_Disease","Thyroid_Issue","Liver_Issue"],var_name="Disease_type")
+disease_long = pd.melt(df, id_vars=["Year","Diabetes","Gender"], value_vars=["High_Blood_Pressure","Kidney_Issue","Coronory_Heart_Disease","Thyroid_Issue","Liver_Issue","High_Cholestrol_lvl","Heart_Attack","Stroke"],var_name="Disease_type")
 disease_long = disease_long.dropna(subset=["Disease_type","value"])
-disease_long['Disease_type'] = disease_long['Disease_type'].replace(to_replace = ["High_Blood_Pressure","Kidney_Issue","Coronory_Heart_Disease","Thyroid_Issue","Liver_Issue"], value=['High Blood Pressure', 'Kidney Issue', 'Coronory Heart Disease', 'Thyroid Issue', 'Liver Issue'])
+disease_long['Disease_type'] = disease_long['Disease_type'].replace(to_replace = ["High_Blood_Pressure","Kidney_Issue","Coronory_Heart_Disease","Thyroid_Issue","Liver_Issue","High_Cholestrol_lvl","Heart_Attack","Stroke"], value=['High Blood Pressure', 'Kidney Issue', 'Coronory Heart Disease', 'Thyroid Issue', 'Liver Issue','High Cholestrol level','Heart Attack','Stroke'])
 disease_long = disease_long[disease_long["value"] != "no"]
 
 # disease multiselect
