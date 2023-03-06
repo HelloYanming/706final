@@ -1,0 +1,260 @@
+---
+title: "706_Data_Query"
+author: "Shirley Zhou"
+date: "2023-02-25"
+output: html_document
+---
+
+### Data Table Construction and Manipulation for NHANES Data
+
+
+
+```{r helper functions}
+library(nhanesA)
+library(dplyr)
+library(hash)
+library(haven)
+
+dt_names = hash(
+  "demo"= c("DEMO"),
+  "exam"= c("BMX"),
+  "lab"= c("GLU", "GHB"),
+  "q" = c("ALQ", "SMQ", "PAQ", "BPQ", "KIQ_U", "MCQ", "DIQ")
+)
+
+update_dt_names = function(suffix){
+  new_names = copy(dt_names)
+  new_names[["demo"]] = paste(new_names[["demo"]], suffix, sep="_")
+  new_names[["exam"]] = paste(new_names[["exam"]], suffix, sep="_")
+  new_names[["lab"]] = paste(new_names[["lab"]], suffix, sep="_")
+  new_names[["q"]] = paste(new_names[["q"]], suffix, sep="_")
+  return(new_names)
+}
+
+query_table = function(type, year){
+  ###type: takes any of DEMO, EXAM, DIET, LAB, Q###
+  dt_names = nhanesTables(type, year, namesonly=TRUE)
+  dt = lapply(dt_names, nhanes)
+  names(dt) = dt_names
+  return(dt)
+}
+
+select_col_DEMO = function(dt_list, year, demo_name){
+  if (year == 2009) {
+    cols = c("SEQN", "RIAGENDR","RIDAGEYR", "RIDRETH1","INDFMIN2")
+    filtered_dt = dt_list[[demo_name[1]]] %>% select(all_of(cols))
+    colnames(filtered_dt)[4] ="RIDRETH3"  # unify name
+  } else {
+    cols = c("SEQN", "RIAGENDR","RIDAGEYR", "RIDRETH3","INDFMIN2")
+    filtered_dt = dt_list[[demo_name[1]]] %>% select(all_of(cols))
+  }
+  # add data year
+  filtered_dt = filtered_dt %>% mutate(Year = year)
+  print("DEMO table query complete")
+  return (filtered_dt)
+}
+
+select_col_EXAM = function(dt_list, ex_name){
+  filtered_dt = dt_list[[ex_name[1]]] %>% select(SEQN, BMXBMI)
+  print("EXAM table query complete")
+  return (filtered_dt)
+}
+
+select_col_LAB = function(dt_list, lab_names){
+  ghb_dt = dt_list[[lab_names[2]]]
+  glu_dt = dt_list[[lab_names[1]]] %>% select(SEQN, LBDGLUSI)
+  filtered_dt = merge(x = glu_dt, y = ghb_dt, by = "SEQN",all = TRUE)
+  print("LAB table query complete")
+  return (filtered_dt)
+}
+
+select_col_Q = function(dt_list, year, q_names){
+  if (year == 2009){
+    # data not available in package
+    alq_dt = read_xpt("data/ALQ_F.XPT") %>% select(SEQN, ALQ101, ALQ120Q)
+  } else if (year == 2017) {
+    # different questionnaire for year 2017
+    alq_dt = dt_list[[q_names[1]]] %>% select(SEQN, ALQ121)
+  } else{
+    alq_dt = dt_list[[q_names[1]]] %>% select(SEQN, ALQ101, ALQ120Q)
+  }
+  
+  filtered_dt = merge(x = alq_dt, y = dt_list[[q_names[2]]] %>% select(SEQN, SMQ020), 
+                     by = "SEQN",all = TRUE)
+  filtered_dt = merge(x = filtered_dt, y = dt_list[[q_names[3]]] %>% select(SEQN, PAQ650, PAQ665), 
+                     by = "SEQN",all = TRUE)
+  filtered_dt = merge(x = filtered_dt, y = dt_list[[q_names[4]]] %>% select(SEQN, BPQ020, BPQ080), 
+                     by = "SEQN",all = TRUE)
+  
+  filtered_dt = merge(x = filtered_dt, y = dt_list[[q_names[5]]] %>% select(SEQN, KIQ022), 
+                     by = "SEQN",all = TRUE)
+  filtered_dt = merge(x = filtered_dt, y = dt_list[[q_names[6]]] %>% select(SEQN, MCQ160C, MCQ160E, MCQ160F, MCQ160M, MCQ160L), 
+                     by = "SEQN",all = TRUE)
+  filtered_dt = merge(x = filtered_dt, y = dt_list[[q_names[7]]] %>% select(SEQN, DIQ010), 
+                     by = "SEQN",all = TRUE)
+  
+  print("Q table query complete")
+  return (filtered_dt)
+}
+
+query_by_year = function(year, suffix){
+  
+  names = update_dt_names(suffix)
+  
+  print(paste("Querying data for year", year))
+  
+  demo = query_table("DEMO", year)
+  nhanes.curr = select_col_DEMO(demo, year, names[["demo"]])
+  
+  exam= query_table("EXAM", year)
+  nhanes.curr = merge(nhanes.curr, select_col_EXAM(exam, names[["exam"]]), by = "SEQN",all = TRUE)
+
+  lab = query_table("LAB", year)
+  nhanes.curr = merge(nhanes.curr, select_col_LAB(lab, names[["lab"]]), by = "SEQN",all = TRUE)
+
+  q = query_table("Q", year)
+  nhanes.curr = merge(nhanes.curr, select_col_Q(q, year, names[["q"]]), by = "SEQN",all = TRUE)
+  return(nhanes.curr)
+}
+```
+
+
+```{r}
+nhanes.2009 = query_by_year(2009, "F")
+nhanes.2011 = query_by_year(2011, "G")
+nhanes.2013 = query_by_year(2013, "H")
+nhanes.2015 = query_by_year(2015, "I")
+nhanes.2017 = query_by_year(2017, "J")
+```
+
+
+Note that there are difference in the alcohol questionnaire before and after 2017, need to normalize alcohol column first 
+
+
+```{r}
+nhanes.before.2017 = rbind(nhanes.2009, nhanes.2011, nhanes.2013, nhanes.2015)
+nhanes.before.2017.new = nhanes.before.2017 %>% 
+  mutate(ALQ121 = case_when(
+    ALQ120Q > 52 & ALQ120Q <= 365 ~ 1,
+    ALQ120Q <= 52 ~ 2,
+    TRUE ~ NA_real_
+  )) %>% select(-ALQ120Q) %>%
+  mutate(ALQ121 = case_when(
+    ALQ121 == 1 & ALQ101 == 1 ~ 1,
+    ALQ121 == 2 & ALQ101 == 1 ~ 2,
+    ALQ121 == 2 & ALQ101 == 2 ~ 2,
+    is.na(ALQ121) & ALQ101 == 2 ~ 2,
+    TRUE ~ NA_real_
+  ))
+nhanes.before.2017.new %>% select(ALQ121, ALQ101) %>% group_by(ALQ121, ALQ101) %>%count()
+```
+
+```{r}
+nhanes.before.2017.new = nhanes.before.2017 %>% 
+  mutate(ALQ121 = case_when(
+    ALQ120Q > 52 & ALQ120Q <= 365 ~ 1,ALQ120Q <= 52 ~ 2,TRUE ~ NA_real_
+  )) %>% select(-ALQ120Q) %>%
+  mutate(ALQ121 = case_when(
+    ALQ121 == 1 & ALQ101 == 1 ~ 1,
+    ALQ121 == 2 & ALQ101 == 1 ~ 2,
+    ALQ121 == 2 & ALQ101 == 2 ~ 2,
+    is.na(ALQ121) & ALQ101 == 2 ~ 2,
+    TRUE ~ NA_real_
+  )) %>% select(-ALQ101)
+
+nhanes.2017.new = nhanes.2017 %>% 
+  mutate(ALQ121 = case_when(
+    ALQ121 > 4 & ALQ121 <= 10 ~ 2,
+    ALQ121 == 0 ~ 2,
+    ALQ121 <= 4 & ALQ121 > 0 ~ 1,
+    TRUE ~ NA_real_
+  )
+)
+```
+
+
+```{r}
+nhanes.all = rbind(nhanes.before.2017.new, nhanes.2017.new)
+summary(nhanes.all)
+```
+
+
+```{r}
+# rename columns
+new_colnames = c(id = "SEQN", Gender = "RIAGENDR", Age = "RIDAGEYR", Race = "RIDRETH3", Family_Income = "INDFMIN2", BMI = "BMXBMI", Glycohemoglobin_lvl = "LBXGH", Fasting_Glucose_lvl = "LBDGLUSI", Regular_Drinker = "ALQ121", Regular_Smoker = "SMQ020", Vigorous_Exerciser = "PAQ650", Moderate_Exerciser = "PAQ665", High_Blood_Pressure = "BPQ020", High_Cholestrol_lvl = "BPQ080", Coronory_Heart_Disease = "MCQ160C", Heart_Attack = "MCQ160E", Stroke = "MCQ160F", Thyroid_Issue = "MCQ160M", Liver_Issue = "MCQ160L", Kidney_Issue = "KIQ022", Diabetes = "DIQ010")
+
+nhanes.all = nhanes.all %>% rename(all_of(new_colnames))
+```
+
+
+```{r}
+yes_no_encoder = function(df, col_names){
+  
+  for (col in col_names) {
+    x = as.numeric(df[[col]])
+    df[[col]] = case_when(
+      x == 1 ~ "yes",
+      x == 2 ~ "no",
+      TRUE ~ NA_character_
+    )
+  }
+  return (df)
+}
+
+categoricals = c("Regular_Drinker", "Regular_Smoker", "Vigorous_Exerciser", "Moderate_Exerciser", "High_Blood_Pressure", "High_Cholestrol_lvl", "Coronory_Heart_Disease",  "Heart_Attack", "Stroke", "Thyroid_Issue", "Liver_Issue", "Kidney_Issue", "Diabetes")
+nhanes.all = yes_no_encoder(nhanes.all, categoricals)
+```
+
+
+```{r}
+nhanes.final = nhanes.all %>% mutate(
+  Gender = case_when(
+    Gender == 1 ~ "Male",
+    Gender == 2 ~ "Female"
+  ), Race = case_when(
+    Race %in% c(1, 2) ~ "Hispanic",
+    Race == 3 ~ "White",
+    Race == 4 ~ "Black",
+    Race %in% c(5, 7) ~ "Other",
+    Race == 6 ~ "Asian"
+  ), Family_Income = case_when(
+    Family_Income %in% c(1, 2) ~ "<10000",
+    Family_Income %in% c(3, 4) ~ "10000-20000",
+    Family_Income %in% c(5, 6) ~ "20000-35000",
+    Family_Income %in% c(7, 8) ~ "35000-55000",
+    Family_Income %in% c(9, 10) ~ "55000-75000",
+    Family_Income == 14 ~ "75000-100000",
+    Family_Income == 15 ~ ">100000",
+    TRUE ~ NA_character_
+  ), Age_Group = case_when(
+    Age < 18 ~ "<18",
+    Age > 19 & Age <= 25 ~ "19-25",
+    Age > 26 & Age <= 35 ~ "26-35",
+    Age > 36 & Age <= 45 ~ "36-45",
+    Age > 46 & Age <= 55 ~ "46-55",
+    Age > 56 & Age <= 65 ~ "56-65",
+    Age > 65 ~ ">65",
+    TRUE ~ NA_character_
+  ), BMI_Group = case_when(
+    BMI < 18.5 ~ "underweight",
+    BMI >= 18.5 & BMI < 25 ~ "normal",
+    BMI >=25 & BMI < 30 ~ "overweight",
+    BMI >=30 ~ "obese",
+    TRUE ~ NA_character_
+  ) 
+) %>% filter(!is.na(Diabetes))
+```
+
+
+```{r}
+summary(nhanes.final)
+```
+
+```{r}
+write.csv(nhanes.final, "data/nhanes_filtered.csv", row.names = F)
+```
+
+```{r}
+read.csv("data/nhanes_filtered.csv")
+```
+
