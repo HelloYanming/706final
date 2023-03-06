@@ -1,135 +1,253 @@
 import altair as alt
 import pandas as pd
 import streamlit as st
-
-### P1.2 ###
-
-# Move this code into `load_data` function {{
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 
-# }}
-
-
-@st.cache
+@st.cache_data
 def load_data():
-    ## {{ CODE HERE }} ##
-    cancer_df = pd.read_csv("https://raw.githubusercontent.com/hms-dbmi/bmi706-2022/main/cancer_data/cancer_ICD10.csv").melt(  # type: ignore
-        id_vars=["Country", "Year", "Cancer", "Sex"],
-        var_name="Age",
-        value_name="Deaths",
+   
+    diabetes = pd.read_csv("https://github.com/WZ1117/706_go/blob/main/data/nhanes_filtered.csv?raw=true")
+
+    return diabetes
+
+diabetes = load_data()
+
+year = st.slider(
+    label="Year", 
+    min_value=int(diabetes["Year"].min()),
+    max_value=int(diabetes["Year"].max()),
+    value=2013,
+    step=2
+)
+subset = diabetes[diabetes["Year"] == year]
+
+user_age = st.number_input('My age is: ',min_value=10, max_value=90, value=22)
+#subset = subset[subset["Sex"] == sex]
+
+life_style_options = st.multiselect(
+    'My life-style includes:',
+    ["I drink more than 50 times per year.","I smoke more than 100 cigarettes times per year.","I do vigorous-intensity sports like running or basketball more than once per week"],
+    ["I smoke more than 100 cigarettes times per year."])
+
+if "I drink more than 50 times per year." in life_style_options:
+    drink_yes = True
+else:
+    drink_yes = False
+if "I smoke more than 100 cigarettes times per year." in life_style_options:
+    smoke_yes = True
+else:
+    smoke_yes = False
+if "I do vigorous-intensity sports like running or basketball more than once per week" in life_style_options:
+    exercise_yes = True
+else:
+    exercise_yes = False
+
+#########################################PLOT1#########################################
+
+
+
+default_lifestyle = "Smoking"
+option=["Smoking","Drinking","Exercising"]
+Life_style = st.selectbox(
+    label='Life-style',
+    options=option,
+    index=option.index(default_lifestyle)
 )
 
-    pop_df = pd.read_csv("https://raw.githubusercontent.com/hms-dbmi/bmi706-2022/main/cancer_data/population.csv").melt(  # type: ignore
-        id_vars=["Country", "Year", "Sex"],
-        var_name="Age",
-        value_name="Pop",
-)
-
-    df = pd.merge(left=cancer_df, right=pop_df, how="left")
-    df["Pop"] = df.groupby(["Country", "Sex", "Age"])["Pop"].fillna(method="bfill")
-    df.dropna(inplace=True)
-
-    df = df.groupby(["Country", "Year", "Cancer", "Age", "Sex"]).sum().reset_index()
-    df["Rate"] = df["Deaths"] / df["Pop"] * 100_000
-    return df
+smoking = subset[["Age","Glycohemoglobin_lvl","Regular_Smoker"]].dropna()
+Drinking = subset[["Age","Glycohemoglobin_lvl","Regular_Drinker"]].dropna()
+Exercising = subset[["Age","Glycohemoglobin_lvl","Vigorous_Exerciser"]].dropna()
+list1 = list(range(18, 81))
+list1 = np.array(list1)
 
 
-# Uncomment the next line when finished
-df = load_data()
+smokingyes=smoking[smoking["Regular_Smoker"]=="yes"]
+smokingno=smoking[smoking["Regular_Smoker"]=="no"]
+smokingyesX = smokingyes.iloc[:, 0].values.reshape(-1, 1)  
+smokingyesY =  smokingyes.iloc[:, 1].values.reshape(-1, 1)  
+smokingyeslinear_regressor = LinearRegression()  
+smokingyeslinear_regressor.fit(smokingyesX, smokingyesY)  
+smokingyesY_pred = smokingyeslinear_regressor.predict(list1.reshape(-1, 1))  
 
-### P1.2 ###
-
-
-st.write("## Age-specific cancer mortality rates")
-
-### P2.1 ###
-import streamlit as st
-year = 2012
-year = st.slider('Year', 1994, 2020, 2012)
-subset = df[df["Year"] == year]
-### P2.1 ###
-
-
-### P2.2 ###
-# replace with st.radio
-sex = "M"
-sex = st.radio(
-    "Sex",
-    ('M', 'F'))
-subset = subset[subset["Sex"] == sex]
-### P2.2 ###
-
-
-### P2.3 ###
-# replace with st.multiselect
-# (hint: can use current hard-coded values below as as `default` for selector)
-countries2 = [
-    "Austria",
-    "Germany",
-    "Iceland",
-    "Spain",
-    "Sweden",
-    "Thailand",
-    "Turkey",
-]
-countries = st.multiselect(
-    'Countries',
-    df.Country.unique().tolist(),
-    countries2)
-subset = subset[subset["Country"].isin(countries)]
-### P2.3 ###
+smokingnoX = smokingno.iloc[:, 0].values.reshape(-1, 1)  
+smokingnoY =  smokingno.iloc[:, 1].values.reshape(-1, 1)  
+smokingnolinear_regressor = LinearRegression()  
+smokingnolinear_regressor.fit(smokingnoX, smokingnoY)  
+smokingnoY_pred = smokingnolinear_regressor.predict(list1.reshape(-1, 1)) 
 
 
 
+Drinkingyes=Drinking[Drinking["Regular_Drinker"]=="yes"]
+Drinkingno=Drinking[Drinking["Regular_Drinker"]=="no"]
+DrinkingyesX = Drinkingyes.iloc[:, 0].values.reshape(-1, 1)  
+DrinkingyesY =  Drinkingyes.iloc[:, 1].values.reshape(-1, 1)  
+Drinkingyeslinear_regressor = LinearRegression()  
+Drinkingyeslinear_regressor.fit(DrinkingyesX, DrinkingyesY)  
+DrinkingyesY_pred = Drinkingyeslinear_regressor.predict(list1.reshape(-1, 1))  
 
-### P2.4 ###
-# replace with st.selectbox
-cancer = "Malignant neoplasm of stomach"
-
-cancer = st.selectbox(
-    'Cancer',
-    df.Cancer.unique())
-
-subset = subset[subset["Cancer"] == cancer]
-### P2.4 ###
-
-
-### P2.5 ###
-ages = [
-    "Age <5",
-    "Age 5-14",
-    "Age 15-24",
-    "Age 25-34",
-    "Age 35-44",
-    "Age 45-54",
-    "Age 55-64",
-    "Age >64",
-]
+DrinkingnoX = Drinkingno.iloc[:, 0].values.reshape(-1, 1)  
+DrinkingnoY =  Drinkingno.iloc[:, 1].values.reshape(-1, 1)  
+Drinkingnolinear_regressor = LinearRegression()  
+Drinkingnolinear_regressor.fit(DrinkingnoX, DrinkingnoY)  
+DrinkingnoY_pred = Drinkingnolinear_regressor.predict(list1.reshape(-1, 1))   
 
 
-chart = alt.Chart(subset).mark_rect().encode(
-    x=alt.X("Age", sort=ages),
-    y=alt.Y("Country"),
-    color=alt.Color("Rate",title="Mortality rate per 100k",scale=alt.Scale(type='log', domain=(0.01, 1000), clamp=True)),
-    tooltip=["Rate"],
+list2 = list(range(12, 81))
+list2 = np.array(list2)
+Exercisingyes=Exercising[Exercising["Vigorous_Exerciser"]=="yes"]
+Exercisingno=Exercising[Exercising["Vigorous_Exerciser"]=="no"]
+ExercisingyesX = Exercisingyes.iloc[:, 0].values.reshape(-1, 1)  
+ExercisingyesY =  Exercisingyes.iloc[:, 1].values.reshape(-1, 1)  
+Exercisingyeslinear_regressor = LinearRegression()  
+Exercisingyeslinear_regressor.fit(ExercisingyesX, ExercisingyesY)  
+ExercisingyesY_pred = Exercisingyeslinear_regressor.predict(list2.reshape(-1, 1))  
+
+ExercisingnoX = Exercisingno.iloc[:, 0].values.reshape(-1, 1)  
+ExercisingnoY =  Exercisingno.iloc[:, 1].values.reshape(-1, 1)  
+Exercisingnolinear_regressor = LinearRegression()  
+Exercisingnolinear_regressor.fit(ExercisingnoX, ExercisingnoY)  
+ExercisingnoY_pred = Exercisingnolinear_regressor.predict(list2.reshape(-1, 1))  
+
+
+if Life_style == "Exercising":
+    points = alt.Chart(Exercising).mark_point().encode(
+    x=alt.X('Age:Q', scale=alt.Scale(domain=[12, 80])),
+    y=alt.Y('Glycohemoglobin_lvl:Q', scale=alt.Scale(domain=[2, 19]),title='Glycated hemoglobin(%)'),
+    color=alt.Color("Vigorous_Exerciser", legend=alt.Legend(title=""))
 ).properties(
-    title=f"{cancer} mortality rates for {'males' if sex == 'M' else 'females'} in {year}",
+    title=str(year)+" Distribution of Blood Glucose Levels of Different Fitness Level",
+    width=1100,height=600
 )
-### P2.5 ###
-
-### Bonus ###
-selector = alt.selection_single(
-    fields=["Country"]
-    )
-
-### Bonus ###
-
-st.altair_chart(chart, use_container_width=True)
-
-countries_in_subset = subset["Country"].unique()
-if len(countries_in_subset) != len(countries):
-    if len(countries_in_subset) == 0:
-        st.write("No data avaiable for given subset.")
+    line =alt.Chart(pd.DataFrame({'ExercisingY_pred':ExercisingnoY_pred.flatten().tolist()+ExercisingyesY_pred.flatten().tolist(),'Age': list(range(12, 81))+ list(range(12, 81)), 'Group':["Non-exercise Prediction"] * 69+["Exercise Prediction"]*69})).mark_line(shape="stroke").encode(
+           alt.X('Age', scale=alt.Scale(domain=[12, 80])),
+           alt.Y('ExercisingY_pred',scale=alt.Scale(domain=[2, 19])),
+           color=alt.Color('Group',title=""))
+    if exercise_yes:
+        Prediction = Exercisingyeslinear_regressor.predict(np.array([user_age]).reshape(-1, 1))
     else:
-        missing = set(countries) - set(countries_in_subset)
-        st.write("No data available for " + ", ".join(missing) + ".")
+        Prediction = Exercisingnolinear_regressor.predict(np.array([user_age]).reshape(-1, 1))
+    you = alt.Chart(pd.DataFrame({'Age': [user_age], 'Prediction': Prediction.flatten().tolist()})).mark_point(filled=True,shape="cross",size=120).encode(
+    x=alt.X('Age:Q'),
+    y=alt.Y('Prediction:Q'),
+    color=alt.value('black')
+)
+    
+elif Life_style == "Drinking":
+    points = alt.Chart(Drinking).mark_point().encode(
+    x=alt.X('Age:Q', scale=alt.Scale(domain=[18, 80])),
+    y=alt.Y('Glycohemoglobin_lvl:Q', scale=alt.Scale(domain=[2, 19]),title='Glycated hemoglobin(%)'),
+    color=alt.Color("Regular_Drinker", legend=alt.Legend(title=""))
+).properties(
+    title=str(year)+" Distribution of Blood Glucose Levels of Different Alcohol Consumption",
+    width=1100,height=600
+)
+    line =alt.Chart(pd.DataFrame({'DrinkingY_pred':DrinkingnoY_pred.flatten().tolist()+DrinkingyesY_pred.flatten().tolist(),'Age': list(range(18, 81))+ list(range(18, 81)), 'Group':["Non-drink Prediction"] * 63+["Drink Prediction"]*63})).mark_line(shape="stroke").encode(
+           alt.X('Age', scale=alt.Scale(domain=[18, 80])),
+           alt.Y('DrinkingY_pred',scale=alt.Scale(domain=[2, 19])),
+           color=alt.Color('Group', title="")
+)
+    if drink_yes:
+        Prediction = Drinkingyeslinear_regressor.predict(np.array([user_age]).reshape(-1, 1))
+    else:
+        Prediction = Drinkingnolinear_regressor.predict(np.array([user_age]).reshape(-1, 1))
+    you = alt.Chart(pd.DataFrame({'Age': [user_age], 'Prediction': Prediction.flatten().tolist()})).mark_point(filled=True,shape="cross",size=120).encode(
+    x=alt.X('Age:Q'),
+    y=alt.Y('Prediction:Q'),
+    color=alt.value('black')
+)
+
+    
+else:
+    points = alt.Chart(smoking).mark_point().encode(
+    x=alt.X('Age:Q', scale=alt.Scale(domain=[18, 80])),
+    y=alt.Y('Glycohemoglobin_lvl:Q', scale=alt.Scale(domain=[2, 19]),title='Glycated hemoglobin(%)'),
+    color=alt.Color("Regular_Smoker", legend=alt.Legend(title=""))
+).properties(
+    title=str(year) +" Distribution of Blood Glucose Levels of Different Smoking Habits",
+    width=1100,height=600
+)
+    line =alt.Chart(pd.DataFrame({'smokingY_pred':smokingnoY_pred.flatten().tolist()+smokingyesY_pred.flatten().tolist(),'Age': list(range(18, 81))+ list(range(18, 81)), 'Group':["Non-smoke Prediction"] * 63+["Smoke Prediction"]*63})).mark_line(shape="stroke").encode(
+           alt.X('Age', scale=alt.Scale(domain=[18, 80])),
+           alt.Y('smokingY_pred',scale=alt.Scale(domain=[2, 19])),
+           color=alt.Color('Group', title="")
+)
+
+    if smoke_yes:
+        Prediction = smokingyeslinear_regressor.predict(np.array([user_age]).reshape(-1, 1))
+    else:
+        Prediction = smokingnolinear_regressor.predict(np.array([user_age]).reshape(-1, 1))
+    you = alt.Chart(pd.DataFrame({'Age': [user_age], 'Prediction': Prediction.flatten().tolist()})).mark_point(filled=True,shape="cross",size=120).encode(
+    x=alt.X('Age:Q'),
+    y=alt.Y('Prediction:Q'),
+    color=alt.value('black')
+)
+    
+# Scatter Plot
+points+line+you
+
+#########################################PLOT1#########################################
+
+
+
+
+
+#########################################PLOT2#########################################
+# Create DataFrame
+def sum_pairs(lst):
+    result = []
+    for i in range(0, len(lst)-1, 2):
+        result.append(lst[i] + lst[i+1])
+        result.append(lst[i] + lst[i+1])
+    return result
+def calculate_rates(yes,total):
+    result = []
+    for i in range(1, len(yes), 2):
+        result.append(yes[i] / total[i] * 100)
+    return result
+def calculate_avergae_rates(yes,total):
+    result = []
+    result2 = []
+    for i in range(1, 8, 2):
+        result.append((yes[i]+ yes[i+8])/ (total[i]+total[i+8]) * 100)
+        result2.append((yes[i]+ yes[i+8])/ (total[i]+total[i+8]) * 100)
+    for i in result:
+        result2.append(i)
+    return result2
+
+total=sum_pairs(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list())
+rates=calculate_rates(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list(),total)
+average=calculate_avergae_rates(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list(),total)
+
+plot2df = {'BMI_Group': ['Normal', 'Obese', 'Overweight', 'Underweight','Normal', 'Obese', 'Overweight', 'Underweight'],
+        'Gender': ['Female','Female','Female','Female',"Male","Male","Male","Male"],
+       "Rate":rates,
+          "Average":average}
+  
+plot2df = pd.DataFrame(plot2df)
+plot2df['Rate'] = plot2df['Rate'].apply(lambda x: float("{:.2f}".format(x)))
+plot2df['Average'] = plot2df['Average'].apply(lambda x: float("{:.2f}".format(x)))
+
+
+# Create Plot
+plot2 = alt.Chart(plot2df).mark_bar().encode(alt.X('Gender',axis=None),alt.Y('Rate', title='Rates(%)'),color=alt.Color('Gender'),column=alt.Column('BMI_Group', sort=[ 'Underweight', 'Normal', 'Overweight','Obese'], header=alt.Header(titleFontSize=10)),tooltip= [alt.Tooltip(field = "Rate",title = "Rate(%)"), alt.Tooltip(field = "Average", title = "Average Rate(%)")]).properties(
+    title=str(year)+' Diabetes Rates Vs. BMI').properties(
+    width=alt.Step(65) 
+).configure_axis(
+    labelFontSize=20)
+user_BMI="Normal"
+line2 =alt.Chart(plot2df).mark_line(shape="stroke").encode(
+           alt.X('BMI_Group', sort=[ 'Underweight', 'Normal', 'Overweight','Obese']),
+           alt.Y('Average'),
+    shape=alt.condition(alt.datum.BMI_Group == user_BMI,alt.value('cross'),     # which sets the bar orange.
+        alt.value('circle')),
+color=alt.condition(alt.datum.BMI_Group == user_BMI,alt.value('red'),     # which sets the bar orange.
+        alt.value('blue'))).properties(
+     title=str(year)+' Overall Diabetes Rates of Different BMI Group',
+    width=650 
+)
+
+plot2
+line2
+#########################################PLOT2#########################################
