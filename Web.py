@@ -56,7 +56,7 @@ with st.sidebar:
     life_style_options = st.multiselect(
     'My life-style includes:',
     ["I drink more than 50 times per year.","I smoke more than 100 cigarettes times per year.","I do vigorous-intensity sports like running or basketball more than once per week"],
-    ["I smoke more than 100 cigarettes times per year."])
+    [])
 
     
 subset = diabetes[diabetes["Year"] == year]
@@ -112,6 +112,141 @@ else:
     exercise_yes = False
 ###############################
 
+
+
+
+#########################################PLOT3#########################################
+st.header("Prevalence of diabetes based on family income & age range")
+df = df.dropna(subset=["Family_Income","Age_Group","Diabetes"])
+df['Diabetes'] = df['Diabetes'].map({'yes': 100, 'no': 0})
+
+
+df['Year'] = df['Year'].replace(to_replace = [2009, 2011, 2013, 2015, 2017], value=['2009-2010', '2011-2012', '2013-2014', '2015-2016', '2017-2018'])
+subset = df[df["Year"] == year]
+subset["Age_Group"]= subset['Age_Group'].replace(to_replace = ["<18"], value=['<=18'])
+
+# Plot of income
+plot3_income = alt.Chart(subset).transform_joinaggregate(
+    Rate_Family_Income='mean(Diabetes)',
+    groupby=['Family_Income']
+).transform_window(
+    rank='rank(Rate_Family_Income)',
+    sort=[alt.SortField('Rate_Family_Income', order='descending')]
+).mark_bar().encode(
+    y=alt.Y('Family_Income:N', sort='-x', title="Family Income Range"),
+    x=alt.X('mean(Diabetes):Q', title="Diabetes Rate(%)", axis=alt.Axis(tickCount=5)),
+    color=alt.condition(
+        alt.datum.Family_Income == income_type,  
+        alt.value('orange'),     # which sets the bar orange.
+        alt.value('#F9E79F')),
+    tooltip=[alt.Tooltip("Family_Income", title="Family Income Range"),
+             alt.Tooltip("mean(Diabetes):Q",title="Diabetes Rate(%)")]
+).properties(
+    title=f"{year} Family Income vs Prevalence of Diabetes"
+)
+plot3_income
+st.write("Your Family Income Group is highlighted in orange.")
+
+
+
+plot3_age = alt.Chart(subset).transform_joinaggregate(
+    Rate_Age='mean(Diabetes)',
+    groupby=['Age_Group']
+).transform_window(
+    rank='rank(Rate_Age)',
+    sort=[alt.SortField('Rate_Age', order='descending')]
+).mark_bar().encode(
+    y=alt.Y('Age_Group:N', sort='-x', title="Age Group"),
+    x=alt.X('mean(Diabetes):Q', title="Diabetes Rate(%)", axis=alt.Axis(tickCount=5)),
+    color=alt.condition(
+        alt.datum.Age_Group == age_type,  
+        alt.value('orange'),     # which sets the bar orange.
+        alt.value('#52BE80')),
+    tooltip=[alt.Tooltip("Age_Group", title="Age Group"),
+             alt.Tooltip("mean(Diabetes):Q",title="Diabetes Rate(%)")]
+).properties(
+    title=f"{year} Age Group vs Prevalence Of Diabetes"
+)
+
+plot3_age
+st.write("Your Age Group is highlighted in orange.")
+#########################################PLOT3#########################################
+
+
+
+#########################################PLOT2#########################################
+# Create DataFrame
+st.header("Diabetes rate in different BMI group")
+
+def sum_pairs(lst):
+    result = []
+    for i in range(0, len(lst)-1, 2):
+        result.append(lst[i] + lst[i+1])
+        result.append(lst[i] + lst[i+1])
+    return result
+def calculate_rates(yes,total):
+    result = []
+    for i in range(1, len(yes), 2):
+        result.append(yes[i] / total[i] * 100)
+    return result
+def calculate_avergae_rates(yes,total):
+    result = []
+    result2 = []
+    for i in range(1, 8, 2):
+        result.append((yes[i]+ yes[i+8])/ (total[i]+total[i+8]) * 100)
+        result2.append((yes[i]+ yes[i+8])/ (total[i]+total[i+8]) * 100)
+    for i in result:
+        result2.append(i)
+    return result2
+
+total=sum_pairs(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list())
+rates=calculate_rates(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list(),total)
+average=calculate_avergae_rates(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list(),total)
+
+plot2df = {'BMI_Group': ['Normal', 'Obese', 'Overweight', 'Underweight','Normal', 'Obese', 'Overweight', 'Underweight'],
+        'Gender': ['Female','Female','Female','Female',"Male","Male","Male","Male"],
+       "Rate":rates,
+          "Average":average}
+  
+plot2df = pd.DataFrame(plot2df)
+plot2df['Rate'] = plot2df['Rate'].apply(lambda x: float("{:.2f}".format(x)))
+plot2df['Average'] = plot2df['Average'].apply(lambda x: float("{:.2f}".format(x)))
+
+
+# Create Plot
+plot2 = alt.Chart(plot2df).mark_bar().encode(alt.X('Gender',axis=None),alt.Y('Rate', title='Rate(%)'),color=alt.Color('Gender'),column=alt.Column('BMI_Group', sort=[ 'Underweight', 'Normal', 'Overweight','Obese'], header=alt.Header(titleFontSize=10),title='BMI Group'),tooltip= [alt.Tooltip(field = "Rate",title = "Rate(%)")]).properties(
+    title=str(year)+' Diabetes Rate vs BMI').properties(
+    width=alt.Step(90) 
+)
+
+user_height_m = user_height/100
+user_BMI_num=user_weight/(user_height_m*user_height_m)
+if user_BMI_num <18.5:
+    user_BMI ="Underweight"
+if user_BMI_num >= 18.5 and user_BMI_num < 25:
+    user_BMI ="Normal"
+if user_BMI_num >= 25 and user_BMI_num < 30:
+    user_BMI ="Overweight"
+if user_BMI_num >= 30:
+    user_BMI ="Obese"
+
+
+line2 =alt.Chart(plot2df).mark_line(shape="stroke",color="blue").encode(
+           alt.X('BMI_Group', sort=[ 'Underweight', 'Normal', 'Overweight','Obese'],title='BMI Group'),
+           alt.Y('Average',title='Average Rate(%)'),tooltip=[ alt.Tooltip(field = "Average", title = "Average Rate(%)")],
+    shape=alt.condition(alt.datum.BMI_Group == user_BMI,alt.value('circle'),    
+        alt.value('circle')),
+color=alt.condition(alt.datum.BMI_Group == user_BMI,alt.value('red'),     
+        alt.value('steelblue'))).properties(
+     title=str(year)+' Overall Diabetes Rate of Different BMI Group',
+)
+
+plt2=alt.vconcat(plot2, line2).configure_axisX(labelAngle=360).configure_point(
+    size=100
+)
+plt2
+st.write("Your BMI group's average diabetes rate is highlighted in RED")
+#########################################PLOT2#########################################
 
 #########################################PLOT1#########################################
 st.header("Hemoglobin A1C level across different lifestyle groups")
@@ -271,141 +406,6 @@ plt1
 st.write("Your predictive glycated hemoglobin level is highlighted in RED.")
 
 #########################################PLOT1#########################################
-
-#########################################PLOT3#########################################
-st.header("Prevalence of diabetes based on family income & age range")
-df = df.dropna(subset=["Family_Income","Age_Group","Diabetes"])
-df['Diabetes'] = df['Diabetes'].map({'yes': 100, 'no': 0})
-
-
-df['Year'] = df['Year'].replace(to_replace = [2009, 2011, 2013, 2015, 2017], value=['2009-2010', '2011-2012', '2013-2014', '2015-2016', '2017-2018'])
-subset = df[df["Year"] == year]
-subset["Age_Group"]= subset['Age_Group'].replace(to_replace = ["<18"], value=['<=18'])
-
-# Plot of income
-plot3_income = alt.Chart(subset).transform_joinaggregate(
-    Rate_Family_Income='mean(Diabetes)',
-    groupby=['Family_Income']
-).transform_window(
-    rank='rank(Rate_Family_Income)',
-    sort=[alt.SortField('Rate_Family_Income', order='descending')]
-).mark_bar().encode(
-    y=alt.Y('Family_Income:N', sort='-x', title="Family Income Range"),
-    x=alt.X('mean(Diabetes):Q', title="Diabetes Rate(%)", axis=alt.Axis(tickCount=5)),
-    color=alt.condition(
-        alt.datum.Family_Income == income_type,  
-        alt.value('orange'),     # which sets the bar orange.
-        alt.value('#F9E79F')),
-    tooltip=[alt.Tooltip("Family_Income", title="Family Income Range"),
-             alt.Tooltip("mean(Diabetes):Q",title="Diabetes Rate(%)")]
-).properties(
-    title=f"{year} Family Income vs Prevalence of Diabetes"
-)
-plot3_income
-st.write("Your Family Income Group is highlighted in orange.")
-
-
-
-plot3_age = alt.Chart(subset).transform_joinaggregate(
-    Rate_Age='mean(Diabetes)',
-    groupby=['Age_Group']
-).transform_window(
-    rank='rank(Rate_Age)',
-    sort=[alt.SortField('Rate_Age', order='descending')]
-).mark_bar().encode(
-    y=alt.Y('Age_Group:N', sort='-x', title="Age Group"),
-    x=alt.X('mean(Diabetes):Q', title="Diabetes Rate(%)", axis=alt.Axis(tickCount=5)),
-    color=alt.condition(
-        alt.datum.Age_Group == age_type,  
-        alt.value('orange'),     # which sets the bar orange.
-        alt.value('#52BE80')),
-    tooltip=[alt.Tooltip("Age_Group", title="Age Group"),
-             alt.Tooltip("mean(Diabetes):Q",title="Diabetes Rate(%)")]
-).properties(
-    title=f"{year} Age Group vs Prevalence Of Diabetes"
-)
-
-plot3_age
-st.write("Your Age Group is highlighted in orange.")
-#########################################PLOT3#########################################
-
-
-
-#########################################PLOT2#########################################
-# Create DataFrame
-st.header("Diabetes rate in different BMI group")
-
-def sum_pairs(lst):
-    result = []
-    for i in range(0, len(lst)-1, 2):
-        result.append(lst[i] + lst[i+1])
-        result.append(lst[i] + lst[i+1])
-    return result
-def calculate_rates(yes,total):
-    result = []
-    for i in range(1, len(yes), 2):
-        result.append(yes[i] / total[i] * 100)
-    return result
-def calculate_avergae_rates(yes,total):
-    result = []
-    result2 = []
-    for i in range(1, 8, 2):
-        result.append((yes[i]+ yes[i+8])/ (total[i]+total[i+8]) * 100)
-        result2.append((yes[i]+ yes[i+8])/ (total[i]+total[i+8]) * 100)
-    for i in result:
-        result2.append(i)
-    return result2
-
-total=sum_pairs(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list())
-rates=calculate_rates(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list(),total)
-average=calculate_avergae_rates(subset.groupby(["Gender","BMI_Group"]).Diabetes.value_counts().reset_index(level=0).Diabetes.to_list(),total)
-
-plot2df = {'BMI_Group': ['Normal', 'Obese', 'Overweight', 'Underweight','Normal', 'Obese', 'Overweight', 'Underweight'],
-        'Gender': ['Female','Female','Female','Female',"Male","Male","Male","Male"],
-       "Rate":rates,
-          "Average":average}
-  
-plot2df = pd.DataFrame(plot2df)
-plot2df['Rate'] = plot2df['Rate'].apply(lambda x: float("{:.2f}".format(x)))
-plot2df['Average'] = plot2df['Average'].apply(lambda x: float("{:.2f}".format(x)))
-
-
-# Create Plot
-plot2 = alt.Chart(plot2df).mark_bar().encode(alt.X('Gender',axis=None),alt.Y('Rate', title='Rate(%)'),color=alt.Color('Gender'),column=alt.Column('BMI_Group', sort=[ 'Underweight', 'Normal', 'Overweight','Obese'], header=alt.Header(titleFontSize=10),title='BMI Group'),tooltip= [alt.Tooltip(field = "Rate",title = "Rate(%)")]).properties(
-    title=str(year)+' Diabetes Rate vs BMI').properties(
-    width=alt.Step(90) 
-)
-
-user_height_m = user_height/100
-user_BMI_num=user_weight/(user_height_m*user_height_m)
-if user_BMI_num <18.5:
-    user_BMI ="Underweight"
-if user_BMI_num >= 18.5 and user_BMI_num < 25:
-    user_BMI ="Normal"
-if user_BMI_num >= 25 and user_BMI_num < 30:
-    user_BMI ="Overweight"
-if user_BMI_num >= 30:
-    user_BMI ="Obese"
-
-
-line2 =alt.Chart(plot2df).mark_line(shape="stroke",color="blue").encode(
-           alt.X('BMI_Group', sort=[ 'Underweight', 'Normal', 'Overweight','Obese'],title='BMI Group'),
-           alt.Y('Average',title='Average Rate(%)'),tooltip=[ alt.Tooltip(field = "Average", title = "Average Rate(%)")],
-    shape=alt.condition(alt.datum.BMI_Group == user_BMI,alt.value('circle'),    
-        alt.value('circle')),
-color=alt.condition(alt.datum.BMI_Group == user_BMI,alt.value('red'),     
-        alt.value('steelblue'))).properties(
-     title=str(year)+' Overall Diabetes Rate of Different BMI Group',
-)
-
-plt2=alt.vconcat(plot2, line2).configure_axisX(labelAngle=360).configure_point(
-    size=100
-)
-plt2
-st.write("Your BMI group's average diabetes rate is highlighted in RED")
-#########################################PLOT2#########################################
-
-
 
 #########################################PLOT4#########################################
 # Plot4
