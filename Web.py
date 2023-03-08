@@ -461,7 +461,7 @@ pie_chart = alt.Chart(subset
      #color = alt.Color(field='Diabetes_cat', type='nominal', title="Health Condition"),
      # color = alt.condition(disease_selection, title="Health Condition",
      #    alt.Color(Disease_type), ),
-    color = alt.Color(field ='Diabetes_cat', scale=alt.Scale(
+    color = alt.Color(field ='Diabetes_cat', title="Health Condition", scale=alt.Scale(
         domain=['Diabetic Population', 'Non-diabetic Population'],
         range=['#a87c9f', '#b8b0ac'])),
      tooltip=[alt.Tooltip("count(Disease_type):Q", title="Number of people"),
