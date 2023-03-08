@@ -447,7 +447,8 @@ plot4 = alt.Chart(subset).transform_joinaggregate(
 )
 
 # plot4
-
+print(disease)
+print(disease_selection)
 
 year_range = ['2009-2010', '2011-2012', '2013-2014', '2015-2016', '2017-2018']
 year_dropdown = alt.binding_select(options=year_range)
@@ -461,7 +462,12 @@ pie_chart = alt.Chart(subset
     groupby=['Year']
 ).mark_arc().encode(
      theta = alt.Theta(shorthand='count(Disease_type):Q'),
-     color = alt.Color(field='Diabetes_cat', type='nominal', title="Health Condition"),
+     #color = alt.Color(field='Diabetes_cat', type='nominal', title="Health Condition"),
+     # color = alt.condition(disease_selection, title="Health Condition",
+     #    alt.Color(Disease_type), ),
+    color = alt.Color(field ='Diabetes_cat', scale=alt.Scale(
+        domain=['Diabetic Population', 'Non-diabetic Population'],
+        range=['#a87c9f', '#b8b0ac']
      tooltip=[alt.Tooltip("count(Disease_type):Q", title="Number of people"),
               alt.Tooltip("Diabetes_cat",title="Diabetes Status")]
 ).transform_filter(
