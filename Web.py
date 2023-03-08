@@ -446,10 +446,6 @@ plot4 = alt.Chart(subset).transform_joinaggregate(
     width=alt.Step(30) 
 )
 
-# plot4
-print(disease)
-print(disease_selection)
-
 year_range = ['2009-2010', '2011-2012', '2013-2014', '2015-2016', '2017-2018']
 year_dropdown = alt.binding_select(options=year_range)
 year_select = alt.selection_single(fields=['Year'], bind=year_dropdown, name="Select", init={'Year':year_range[0]})
