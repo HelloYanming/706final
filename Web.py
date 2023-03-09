@@ -15,8 +15,8 @@ st.set_page_config(
 @st.cache_data
 def load_data():
    
-    diabetes = pd.read_csv("https://github.com/WZ1117/706_go/blob/main/data/nhanes_filtered.csv?raw=true")
-
+    diabetes = pd.read_csv("https://github.com/HelloYanming/706final/blob/main/data/nhanes_filtered.csv?raw=true")
+    #diabetes = pd.read_csv("https://github.com/WZ1117/706_go/blob/main/data/nhanes_filtered.csv?raw=true")
     return diabetes
 
 df = load_data()
